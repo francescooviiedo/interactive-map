@@ -1,4 +1,4 @@
-import { fetchData } from "../api/httpClient";
+import { fetchData } from "../../api/httpClient";
 
 class CepService {
     private readonly apiUrl = 'https://viacep.com.br/ws';

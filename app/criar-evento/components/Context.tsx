@@ -1,7 +1,10 @@
 'use client';
 import GetCepAction from "@/infrastructure/actions/cep/GetCepAction";
-import { Box, TextField } from "@mui/material";
+import GetGeolocationAction from "@/infrastructure/actions/geolocation/getGelocationAction";
+import { Box, Button, TextField } from "@mui/material";
 import { useState } from "react";
+import SendIcon from '@mui/icons-material/Send';
+import saveEventAction from "@/infrastructure/actions/eventos/saveEventAction";
 
 export default function Context() {
     const [cep, setCep] = useState('');
@@ -13,7 +16,7 @@ export default function Context() {
     const [lat, setLat] = useState<number | null>(null);
     const [lng, setLng] = useState<number | null>(null);
     const getAddress = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const rawCep = e.target.value.replace(/\D/g, '');
+        const rawCep = e.target.value.replaceAll(/\D/g, '');
         let maskedCep = rawCep;
         if (rawCep.length > 5) {
             maskedCep = rawCep.slice(0, 5) + '-' + rawCep.slice(5, 8);
@@ -24,29 +27,31 @@ export default function Context() {
             setEndereco(respone.logradouro);
             setBairro(respone.bairro);
             setCidade(respone.localidade);
-
-            // Build full address string for geocoding
             const fullAddress = `${respone.logradouro}, ${respone.bairro}, ${respone.localidade}, Brasil`;
-            try {
-                const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-                const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${apiKey}`;
-                const geoRes = await fetch(geocodeUrl);
-                const geoData = await geoRes.json();
-                console.log('Geocoding response:', geoData); // Debug log
-                if (geoData.status === 'OK' && geoData.results.length > 0) {
-                    const location = geoData.results[0].geometry.location;
-                    setLat(location.lat);
-                    setLng(location.lng);
-                } else {
-                    setLat(null);
-                    setLng(null);
-                }
-            } catch (error) {
-                setLat(null);
-                setLng(null);
-            }
+            const location = await GetGeolocationAction(fullAddress);
+            setLat(location.lat);
+            setLng(location.lng);
         }
     };
+
+    const hadleSaveEvent = async () => {
+        const novoEvento = {
+            name: eventName,
+            address: {
+                cep,
+                endereco,
+                numero,
+                bairro,
+                cidade
+            },
+            location: {
+                lat,
+                lng
+            }
+        };
+       await saveEventAction(novoEvento);
+    }
+
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', bgcolor: '#f0f0f0' }}>
             {/* Debug: Show coordinates if available */}
@@ -97,6 +102,9 @@ export default function Context() {
             value={eventName}
             onChange={e => setEventName(e.target.value)}
             />
+            <Button variant="contained" endIcon={<SendIcon />} onClick={hadleSaveEvent} sx={{ mt: 3 }}>
+                 Send
+            </Button>
         </Box>
     );
 }
