@@ -1,7 +1,6 @@
 import Database from 'better-sqlite3';
-import path from 'path';
+import path from 'node:path';
 
-// Database file in project root
 const dbPath = path.resolve(process.cwd(), 'events.sqlite');
 const db = new Database(dbPath);
 

@@ -15,6 +15,7 @@ export default function Context() {
     const [cidade, setCidade] = useState('');
     const [lat, setLat] = useState<number | null>(null);
     const [lng, setLng] = useState<number | null>(null);
+    const [fullAddress, setFullAddress] = useState('');
     const getAddress = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const rawCep = e.target.value.replaceAll(/\D/g, '');
         let maskedCep = rawCep;
@@ -28,13 +29,17 @@ export default function Context() {
             setBairro(respone.bairro);
             setCidade(respone.localidade);
             const fullAddress = `${respone.logradouro}, ${respone.bairro}, ${respone.localidade}, Brasil`;
-            const location = await GetGeolocationAction(fullAddress);
-            setLat(location.lat);
-            setLng(location.lng);
+            setFullAddress(fullAddress);
         }
     };
 
     const hadleSaveEvent = async () => {
+        const fullAddress = `${endereco},${numero} - ${bairro}, ${cidade}, Brasil`;
+        const location = await GetGeolocationAction(fullAddress);
+            setLat(location.lat);
+            setLng(location.lng);
+
+        console.log('Full Address para geolocalização:', fullAddress);
         const novoEvento = {
             name: eventName,
             address: {
