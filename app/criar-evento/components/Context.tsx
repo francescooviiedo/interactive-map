@@ -50,8 +50,8 @@ export default function Context() {
                 cidade
             },
             location: {
-                lat,
-                lng
+                lat: location.lat,
+                lng: location.lng
             }
         };
        await saveEventAction(novoEvento);
