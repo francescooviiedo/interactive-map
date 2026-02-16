@@ -1,4 +1,5 @@
-export async function fetchData(url: string, options: RequestInit) {
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export async function fetchData<T>(url: string, options: RequestInit): Promise<T | null> {
   const response = await fetch(url, {
     method: options.method,
     headers: options.headers,
@@ -19,13 +20,13 @@ export async function fetchData(url: string, options: RequestInit) {
 
   if (!response.ok) {
     if (data && typeof data === 'object') {
-      return data;
+      return data as T;
     }
     return {
       error: typeof data === 'string' ? data : 'Erro ao processar requisição',
       status: response.status,
-    };
+    } as any;
   }
 
-  return data;
+  return data as T;
 }

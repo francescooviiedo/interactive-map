@@ -124,6 +124,7 @@ export default function ThemeProvider({ children }: Props) {
               root: {
                 background:
                   mode === 'dark' ? 'rgba(34, 20, 37, 0.82)' : 'rgba(255, 244, 252, 0.88)',
+                color: mode === 'dark' ? '#f8ecf7' : '#36152f',
                 backdropFilter: 'blur(12px)',
                 borderBottom:
                   mode === 'dark'

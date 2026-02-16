@@ -1,8 +1,8 @@
 'use client';
 import { Box, Button, Stack, Typography } from '@mui/material';
-import {APIProvider, Map, Marker, InfoWindow} from '@vis.gl/react-google-maps';
+import { APIProvider, InfoWindow, Map, Marker, useMap } from '@vis.gl/react-google-maps';
 import PersistentDrawerLeft from './Drawer';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAppThemeMode } from '@/app/theme/ThemeProvider';
 import { useRouter } from 'next/navigation';
 import PlaceIcon from '@mui/icons-material/Place';
@@ -83,6 +83,25 @@ const lightMapStyles = [
     { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#8f4a7d' }] },
 ];
 
+type CameraControllerProps = {
+    selectedEvent: MapEvent | null;
+};
+
+function CameraController({ selectedEvent }: CameraControllerProps) {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!map || !selectedEvent) {
+            return;
+        }
+
+        map.panTo({ lat: selectedEvent.lat, lng: selectedEvent.lng });
+        map.setZoom(Math.max(map.getZoom() ?? 13, 16));
+    }, [map, selectedEvent]);
+
+    return null;
+}
+
 export default function MapContext() {
     const markerPosition = { lat: -19.9208, lng: -43.9378 };
     const [events, setEvents] = useState<MapEvent[]>([]);
@@ -101,7 +120,12 @@ export default function MapContext() {
         }
         fetchEvents();
     }, []);
-    console.log('Eventos recebidos no MapContext:', events);
+
+    const selectedEvent = useMemo(
+        () => events.find((event) => event.id === selectedEventId) ?? null,
+        [events, selectedEventId],
+    );
+
     return (
         <PersistentDrawerLeft
             events={events}
@@ -111,13 +135,14 @@ export default function MapContext() {
             <APIProvider apiKey={API_KEY}>
                 <Map
                     key={mode}
-                    style={{width: '100%', height: '85vh'}}
+                    style={{ width: '100%', height: 'min(85vh, calc(100dvh - 110px))', minHeight: 300 }}
                     defaultCenter={markerPosition}
                     defaultZoom={13}
                     gestureHandling='greedy'
                     disableDefaultUI
                     styles={mode === 'dark' ? darkMapStyles : lightMapStyles}
                 >
+                    <CameraController selectedEvent={selectedEvent} />
                     {events.map((event) => (
                         <Box key={event.id}>
                             <Marker 

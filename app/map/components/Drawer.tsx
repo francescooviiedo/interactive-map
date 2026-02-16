@@ -23,6 +23,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { useRouter } from 'next/navigation';
 import { useAppThemeMode } from '@/app/theme/ThemeProvider';
 
@@ -107,9 +108,12 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 
 export default function PersistentDrawerLeft({ children, events, selectedEventId, onSelectEvent }: Props) {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
   const { mode, toggleMode } = useAppThemeMode();
+  const layoutOpen = open && !isMobile;
+  const responsiveDrawerWidth = isMobile ? '88vw' : `${drawerWidth}px`;
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -120,11 +124,11 @@ export default function PersistentDrawerLeft({ children, events, selectedEventId
   };
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar position="fixed" open={open}>
+    <Box sx={{ display: 'flex', overflowX: 'hidden' }}>
+      <AppBar position="fixed" open={layoutOpen}>
         <Toolbar>
           <IconButton
-            color="inherit"
+            color="default"
             aria-label="open drawer"
             onClick={handleDrawerOpen}
             edge="start"
@@ -141,26 +145,34 @@ export default function PersistentDrawerLeft({ children, events, selectedEventId
             🎉 Eventos
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
-          <IconButton color="inherit" onClick={toggleMode} className="neon-border" aria-label="toggle theme">
+          <IconButton
+            color="default"
+            onClick={toggleMode}
+            className="neon-border"
+            aria-label="toggle theme"
+            sx={{ color: 'text.primary' }}
+          >
             {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>
         </Toolbar>
       </AppBar>
       <Drawer
         sx={{
-          width: drawerWidth,
+          width: responsiveDrawerWidth,
           flexShrink: 0,
           '& .MuiDrawer-paper': {
-            width: drawerWidth,
+            width: responsiveDrawerWidth,
             boxSizing: 'border-box',
           },
         }}
-        variant="persistent"
+        variant={isMobile ? 'temporary' : 'persistent'}
         anchor="left"
         open={open}
+        onClose={handleDrawerClose}
+        ModalProps={{ keepMounted: true }}
       >
         <DrawerHeader>
-          <IconButton onClick={handleDrawerClose}>
+          <IconButton onClick={handleDrawerClose} sx={{ color: 'text.primary' }}>
             {theme.direction === 'ltr' ? <ChevronLeftIcon /> : <ChevronRightIcon />}
           </IconButton>
         </DrawerHeader>
@@ -178,7 +190,12 @@ export default function PersistentDrawerLeft({ children, events, selectedEventId
             return (
               <ListItem key={event.id} disablePadding>
                 <Paper
-                  onClick={() => onSelectEvent(event.id)}
+                  onClick={() => {
+                    onSelectEvent(event.id);
+                    if (isMobile) {
+                      setOpen(false);
+                    }
+                  }}
                   className={isSelected ? 'neon-border' : ''}
                   sx={{
                     width: '100%',
@@ -219,7 +236,7 @@ export default function PersistentDrawerLeft({ children, events, selectedEventId
         <Divider />
         <Box sx={{ p: 2 }}>
           <ListItem disablePadding>
-            <ListItemButton className="neon-glow" onClick={() => router.push('/criar-evento')}>
+            <ListItemButton className="neon-glow" onClick={() => router.push('/criar-evento')} sx={{ minHeight: 44 }}>
               <ListItemIcon>
                 <AddIcon sx={{ color: 'primary.main' }} />
               </ListItemIcon>
@@ -228,7 +245,7 @@ export default function PersistentDrawerLeft({ children, events, selectedEventId
           </ListItem>
         </Box>
       </Drawer>
-      <Main open={open}>
+      <Main open={layoutOpen}>
         <DrawerHeader />
         {children}
       </Main>

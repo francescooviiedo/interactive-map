@@ -16,6 +16,20 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Database and Seeds
+
+This project stores event images locally in `public/uploads` and persists only the relative path in `image_url`.
+
+Use the scripts below to manage sample data:
+
+```bash
+bun run db:reset
+bun run db:seed
+```
+
+- `db:reset`: removes all rows from `events` and resets auto-increment sequence.
+- `db:seed`: creates seed images in `public/uploads` and inserts 5 sample events.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

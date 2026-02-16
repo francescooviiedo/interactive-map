@@ -1,27 +1,54 @@
 'use client';
 import GetCepAction from "@/infrastructure/actions/cep/GetCepAction";
 import GetGeolocationAction from "@/infrastructure/actions/geolocation/getGelocationAction";
-import { Box, Button, Paper, TextField } from "@mui/material";
+import { Alert, Box, Button, Paper, TextField, Typography } from "@mui/material";
 import { useState } from "react";
 import SendIcon from '@mui/icons-material/Send';
 import ImageIcon from '@mui/icons-material/Image';
-import saveEventAction from "@/infrastructure/actions/eventos/saveEventAction";
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { Dayjs } from 'dayjs';
 import 'dayjs/locale/pt-br';
 
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+type FormErrors = {
+    eventName?: string;
+    description?: string;
+    initialDateTime?: string;
+    finalDateTime?: string;
+    image?: string;
+};
+
+function isIsoDate(value: string): boolean {
+    if (!value) {
+        return false;
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return false;
+    }
+
+    return parsed.toISOString() === value;
+}
+
 export default function Context() {
     const [cep, setCep] = useState('');
     const [endereco, setEndereco] = useState('');
     const [numero, setNumero] = useState('');
     const [eventName, setEventName] = useState('');
+    const [description, setDescription] = useState('');
     const [bairro, setBairro] = useState('');
     const [cidade, setCidade] = useState('');
     const [initialDateTime, setInitialDateTime] = useState<Dayjs | null>(null);
     const [finalDateTime, setFinalDateTime] = useState<Dayjs | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [formErrors, setFormErrors] = useState<FormErrors>({});
+    const [requestError, setRequestError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     const handleInitialDateTimeChange = (newValue: Dayjs | null) => {
         setInitialDateTime(newValue);
@@ -44,32 +71,100 @@ export default function Context() {
         }
         setCep(maskedCep);
         if (rawCep.length === 8) {
-            const respone = await GetCepAction(rawCep);
-            setEndereco(respone.logradouro);
-            setBairro(respone.bairro);
-            setCidade(respone.localidade);
+            const response = await GetCepAction(rawCep);
+            setEndereco(response.logradouro);
+            setBairro(response.bairro);
+            setCidade(response.localidade);
         }
     };
 
+    const validateForm = (): FormErrors => {
+        const errors: FormErrors = {};
+
+        if (!eventName.trim()) {
+            errors.eventName = 'Nome do evento é obrigatório.';
+        }
+
+        if (!description.trim()) {
+            errors.description = 'Descrição do evento é obrigatória.';
+        }
+
+        const initialIso = initialDateTime?.toDate().toISOString() ?? '';
+        const finalIso = finalDateTime?.toDate().toISOString() ?? '';
+
+        if (!isIsoDate(initialIso)) {
+            errors.initialDateTime = 'Data inicial obrigatória em formato válido.';
+        }
+
+        if (!isIsoDate(finalIso)) {
+            errors.finalDateTime = 'Data final obrigatória em formato válido.';
+        }
+
+        if (!errors.initialDateTime && !errors.finalDateTime && finalDateTime?.isBefore(initialDateTime)) {
+            errors.finalDateTime = 'A data final não pode ser anterior à data inicial.';
+        }
+
+        if (imageFile && !ALLOWED_IMAGE_TYPES.has(imageFile.type)) {
+            errors.image = 'Formato inválido. Use JPG, PNG ou WEBP.';
+        }
+
+        return errors;
+    };
+
     const hadleSaveEvent = async () => {
+        setRequestError(null);
+        const errors = validateForm();
+        setFormErrors(errors);
+
+        if (Object.keys(errors).length > 0) {
+            return;
+        }
+
+        setIsSaving(true);
         const fullAddress = `${endereco},${numero} - ${bairro}, ${cidade}, Brasil`;
-        const location = await GetGeolocationAction(fullAddress);
-        const novoEvento = {
-            name: eventName,
-            imageUrl: imagePreview,
-            address: {
-                cep,
-                endereco,
-                numero,
-                bairro,
-                cidade
-            },
-            location: {
-                lat: location.lat,
-                lng: location.lng
+        try {
+            const location = await GetGeolocationAction(fullAddress);
+            const payload = new FormData();
+
+            payload.set('name', eventName.trim());
+            payload.set('description', description.trim());
+            payload.set('initial_date', initialDateTime!.toDate().toISOString());
+            payload.set('final_date', finalDateTime!.toDate().toISOString());
+            payload.set('cep', cep);
+            payload.set('endereco', endereco);
+            payload.set('numero', numero);
+            payload.set('bairro', bairro);
+            payload.set('cidade', cidade);
+            payload.set('lat', String(location!.lat));
+            payload.set('lng', String(location!.lng));
+
+            if (imageFile) {
+                payload.set('image', imageFile);
             }
-        };
-       await saveEventAction(novoEvento);
+
+            const response = await fetch('/api/events', {
+                method: 'POST',
+                body: payload,
+            });
+
+            if (!response.ok) {
+                const body = (await response.json()) as { error?: string };
+                setRequestError(body.error ?? 'Falha ao salvar evento.');
+                return;
+            }
+
+            setEventName('');
+            setDescription('');
+            setInitialDateTime(null);
+            setFinalDateTime(null);
+            setImageFile(null);
+            setImagePreview(null);
+            setFormErrors({});
+        } catch {
+            setRequestError('Erro inesperado ao salvar evento.');
+        } finally {
+            setIsSaving(false);
+        }
     }
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,6 +172,14 @@ export default function Context() {
         if (!file) {
             return;
         }
+
+        if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+            setFormErrors((previous) => ({ ...previous, image: 'Formato inválido. Use JPG, PNG ou WEBP.' }));
+            return;
+        }
+
+        setImageFile(file);
+        setFormErrors((previous) => ({ ...previous, image: undefined }));
         const reader = new FileReader();
         reader.onload = () => {
             const result = reader.result;
@@ -116,11 +219,26 @@ export default function Context() {
                     }}
                 />
             )}
-            <Paper className="glass" sx={{ width: '100%', maxWidth: 520, p: 3, borderRadius: 3, position: 'relative', zIndex: 1 }}>
+            <Paper
+                className="glass"
+                sx={{
+                    width: '100%',
+                    maxWidth: 560,
+                    p: { xs: 2, sm: 3 },
+                    borderRadius: 3,
+                    position: 'relative',
+                    zIndex: 1,
+                    overflow: 'hidden',
+                }}
+            >
                 <Box sx={{ display: 'grid', gap: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                        Criar Evento
+                    </Typography>
+                    {requestError && <Alert severity="error">{requestError}</Alert>}
                     <Box
                         sx={{
-                            height: 180,
+                            height: { xs: 150, sm: 180 },
                             borderRadius: 2,
                             border: '1px solid',
                             borderColor: 'divider',
@@ -149,10 +267,16 @@ export default function Context() {
                             </Box>
                         </Box>
                     </Box>
-                    <Button component="label" variant="outlined" startIcon={<ImageIcon />}>
-                        Selecionar imagem
-                        <input hidden accept="image/*" type="file" onChange={handleImageChange} />
+                    <Button component="label" variant="outlined" startIcon={<ImageIcon />} sx={{ minHeight: 44 }}>
+                        <Box component="span">Selecionar imagem</Box>
+                        <input
+                            hidden
+                            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                            type="file"
+                            onChange={handleImageChange}
+                        />
                     </Button>
+                    {formErrors.image && <Alert severity="warning">{formErrors.image}</Alert>}
                     <TextField 
                     label="CEP" 
                     value={cep}
@@ -187,6 +311,19 @@ export default function Context() {
                     label="Nome do Evento" 
                     value={eventName}
                     onChange={e => setEventName(e.target.value)}
+                    error={Boolean(formErrors.eventName)}
+                    helperText={formErrors.eventName}
+                    fullWidth
+                    />
+                    <TextField
+                    label="Descrição"
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    error={Boolean(formErrors.description)}
+                    helperText={formErrors.description}
+                    multiline
+                    minRows={4}
+                    required
                     fullWidth
                     />
                     <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
@@ -194,6 +331,13 @@ export default function Context() {
                             label="Data e hora inicial"
                             value={initialDateTime}
                             onChange={handleInitialDateTimeChange}
+                            slotProps={{
+                                textField: {
+                                    error: Boolean(formErrors.initialDateTime),
+                                    helperText: formErrors.initialDateTime,
+                                    required: true,
+                                },
+                            }}
                             sx={{ width: '100%' }}
                         />
                         <DateTimePicker
@@ -201,6 +345,13 @@ export default function Context() {
                             value={finalDateTime}
                             onChange={handleFinalDateTimeChange}
                             minDateTime={initialDateTime ?? undefined}
+                            slotProps={{
+                                textField: {
+                                    error: Boolean(formErrors.finalDateTime),
+                                    helperText: formErrors.finalDateTime,
+                                    required: true,
+                                },
+                            }}
                             sx={{ width: '100%' }}
                         />
                     </LocalizationProvider>
@@ -209,8 +360,10 @@ export default function Context() {
                         endIcon={<SendIcon />} 
                         onClick={hadleSaveEvent}
                         className="neon-glow"
+                        disabled={isSaving}
+                        sx={{ minHeight: 46 }}
                     >
-                        Send
+                        {isSaving ? 'Salvando...' : 'Salvar evento'}
                     </Button>
                 </Box>
             </Paper>

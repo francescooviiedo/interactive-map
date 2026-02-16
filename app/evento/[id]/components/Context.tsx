@@ -11,6 +11,9 @@ import { useEffect, useState } from 'react';
 type EventDetail = {
   id: number;
   name: string;
+  description: string;
+  initial_date: string;
+  final_date: string;
   cep: string | null;
   endereco: string | null;
   numero: string | null;
@@ -121,6 +124,16 @@ export default function Context({ eventId }: Props) {
 
           <Typography variant="body2" color="text.secondary">
             CEP: {event.cep ?? '-'}
+          </Typography>
+
+          <Typography variant="body1">{event.description}</Typography>
+
+          <Typography variant="body2" color="text.secondary">
+            Início: {new Date(event.initial_date).toLocaleString('pt-BR')}
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary">
+            Fim: {new Date(event.final_date).toLocaleString('pt-BR')}
           </Typography>
 
           {(event.lat !== null || event.lng !== null) && (
