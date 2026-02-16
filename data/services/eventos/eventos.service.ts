@@ -12,6 +12,17 @@ class EventosService {
             console.warn('Erro ao salvar evento:', error);
         }
     }
+
+    async getEventById(id: number) {
+        try {
+            return await fetchData(`http://localhost:3000/api/events/${id}`, {
+                method: 'GET',
+            });
+        } catch (error) {
+            console.warn('Erro ao buscar evento por id:', error);
+            return null;
+        }
+    }
 }
 
 export const eventosService = new EventosService();

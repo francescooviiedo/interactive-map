@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   const data = await req.json();
-  const stmt = db.prepare(`INSERT INTO events (name, cep, endereco, numero, bairro, cidade, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+  const stmt = db.prepare(`INSERT INTO events (name, cep, endereco, numero, bairro, cidade, image_url, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const info = stmt.run(
     data.name,
     data.address.cep,
@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
     data.address.numero,
     data.address.bairro,
     data.address.cidade,
+    data.imageUrl ?? null,
     data.location.lat,
     data.location.lng
   );

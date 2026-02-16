@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
+import ThemeProvider from './theme/ThemeProvider';
 
 export const metadata: Metadata = {
   title: "interactive map",
@@ -17,7 +18,7 @@ export default function RootLayout({ children }: Props) {
     <html lang="en">
       <body>
         <AppRouterCacheProvider>
-           {children}
+          <ThemeProvider>{children}</ThemeProvider>
         </AppRouterCacheProvider>
       </body>
     </html>
